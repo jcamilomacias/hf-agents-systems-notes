@@ -1,0 +1,10 @@
+# ── Site-building requirements (maintainer only) ─────────────────────────────
+# Used by the GitHub Actions deploy workflow and local mkdocs serve.
+# Students do NOT need this file.
+#
+# Install with:  pip install -r requirements-site.txt
+
+mkdocs>=1.6,<2.0
+mkdocs-material>=9.5,<10.0
+pymdown-extensions>=10.7
+pygments>=2.17

@@ -24,6 +24,11 @@ conda env create -f environment.yml
 conda activate hf-agents-env
 ```
 
+This installs all packages at the exact versions used to develop the course notebooks
+(Python 3.11, smolagents 1.24, LangGraph 1.0, LlamaIndex 0.14, and more).
+
+> **Colab / pip users:** skip conda and run `pip install -r requirements.txt` instead.
+
 ### 3. Configure API keys
 
 Create a `.env` file at the root of the project:
