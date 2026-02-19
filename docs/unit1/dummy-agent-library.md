@@ -284,3 +284,47 @@ with `hf_`) and store it in the `.env` file at the root of the project:
 !!! warning "Never share your token"
     `.env` is listed in `.gitignore` and will never be committed. Always use `example.env`
     as the template you share with others — it contains only placeholder values.
+
+
+
+Let's load the library:
+
+```python
+import os
+from huggingface_hub import InferenceClient
+
+# You need a READ token from https://hf.co/settings/tokens
+# On Google Colab, add it under Secrets (left sidebar) and name it "HF_TOKEN"
+# HF_TOKEN = os.environ.get("HF_TOKEN")
+
+client = InferenceClient(model="moonshotai/Kimi-K2.5")
+```
+
+### Why Kimi-K2.5?
+
+**Kimi-K2.5** is developed by [Moonshot AI](https://www.moonshot.cn/), a Chinese AI research company. It is a large mixture-of-experts (MoE) model with strong instruction-following and reasoning capabilities. We use it here because:
+
+- It is available for free on the HF Serverless Inference API with no local setup required
+- It reliably follows the ReAct format specified in the system prompt
+- It supports an optional extended-thinking mode (which we disable with `extra_body={"thinking": {"type": "disabled"}}` to keep outputs shorter and more predictable)
+
+### Choosing a different model
+
+Any chat model hosted on the HF Hub that supports the Serverless Inference API will work as a drop-in replacement. You can browse the full list at:
+
+**[huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)**
+
+Filter by **Text Generation** and look for the ⚡ *Inference API* badge. Good alternatives to try:
+
+| Model | Author | Notes |
+|-------|--------|-------|
+| `meta-llama/Meta-Llama-3.1-8B-Instruct` | Meta | Strong open-weight baseline |
+| `mistralai/Mistral-7B-Instruct-v0.3` | Mistral AI | Fast and lightweight |
+| `Qwen/Qwen2.5-72B-Instruct` | Alibaba | Excellent instruction following |
+| `microsoft/Phi-3.5-mini-instruct` | Microsoft | Very small, runs fast |
+
+To switch, simply change the `model=` argument in `InferenceClient`:
+
+```python
+client = InferenceClient(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
+```
