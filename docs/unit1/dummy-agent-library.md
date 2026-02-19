@@ -13,6 +13,189 @@ We use two simple pieces:
 - **Serverless API** — HF Inference API to call an LLM without any local setup
 - **A plain Python function** as the tool
 
+## Initial Setup
+
+To run the examples we need to set an API key for Hugging Face.
+
+![HuggingFace login](image.png)
+
+After logging into Hugging Face, go to **Settings → Billing** to make sure your account
+has Inference API access enabled (the free tier is sufficient for this course).
+
+Go to **Settings → Access Tokens** and create a new token. Select **Read** as the token
+type — this is all you need to call the Serverless Inference API. Copy the token (it starts
+with `hf_`) and store it in the `.env` file at the root of the project:
+
+=== "Local (.env file)"
+
+    The repo includes an `example.env` template. Copy it and fill in your token:
+
+    ```bash
+    cp example.env .env
+    ```
+
+    Then edit `.env`:
+
+    ```bash
+    HF_TOKEN=hf_your_actual_token_here
+
+    # Optional — only needed for Unit 2 OpenAI-based examples
+    # OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
+    ```
+
+    Load it in your notebooks with `python-dotenv`:
+
+    ```python
+    from dotenv import load_dotenv
+    load_dotenv()  # reads .env from the project root
+
+    import os
+    token = os.environ["HF_TOKEN"]
+    ```
+
+=== "Google Colab"
+
+    Use the Secrets tab (🔑 icon in the left sidebar). Add a secret named `HF_TOKEN`
+    and paste your token as the value. Then load it in the notebook:
+
+    ```python
+    from google.colab import userdata
+    import os
+    os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
+    ```
+
+!!! warning "Never share your token"
+    `.env` is listed in `.gitignore` and will never be committed. Always use `example.env`
+    as the template you share with others — it contains only placeholder values.
+
+
+
+## Now, Let's Build
+
+Let's load the library:
+
+```python
+import os
+from huggingface_hub import InferenceClient
+
+# You need a READ token from https://hf.co/settings/tokens
+# On Google Colab, add it under Secrets (left sidebar) and name it "HF_TOKEN"
+# HF_TOKEN = os.environ.get("HF_TOKEN")
+
+client = InferenceClient(model="moonshotai/Kimi-K2.5")
+```
+
+### Why Kimi-K2.5?
+
+**Kimi-K2.5** is developed by [Moonshot AI](https://www.moonshot.cn/), a Chinese AI research company. It is a large mixture-of-experts (MoE) model with strong instruction-following and reasoning capabilities. We use it here because:
+
+- It is available for free on the HF Serverless Inference API with no local setup required
+- It reliably follows the ReAct format specified in the system prompt
+- It supports an optional extended-thinking mode (which we disable with `extra_body={"thinking": {"type": "disabled"}}` to keep outputs shorter and more predictable)
+
+### Choosing a different model
+
+Any chat model hosted on the HF Hub that supports the Serverless Inference API will work as a drop-in replacement. You can browse the full list at:
+
+**[huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)**
+
+Filter by **Text Generation** and look for the ⚡ *Inference API* badge. Good alternatives to try:
+
+| Model | Author | Notes |
+|-------|--------|-------|
+| `meta-llama/Meta-Llama-3.1-8B-Instruct` | Meta | Strong open-weight baseline |
+| `mistralai/Mistral-7B-Instruct-v0.3` | Mistral AI | Fast and lightweight |
+| `Qwen/Qwen2.5-72B-Instruct` | Alibaba | Excellent instruction following |
+| `microsoft/Phi-3.5-mini-instruct` | Microsoft | Very small, runs fast |
+
+To switch, simply change the `model=` argument in `InferenceClient`:
+
+```python
+client = InferenceClient(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
+```
+
+!!! info "What does 'serverless' mean here?"
+    You don't get a dedicated machine — HF manages a shared pool of GPUs on your behalf.
+    If a model is popular ("warm"), your request is served immediately. If not, you may
+    experience a brief cold start while the model is loaded onto a GPU.
+
+    This is why the model list at
+    [huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)
+    specifically highlights warm models — they are already loaded and respond with low latency.
+
+
+Now let's test the model:
+
+=== "Code"
+
+    ```python
+    output = client.chat.completions.create(
+        messages=[
+            {"role": "user", "content": "The capital of France is"},
+        ],
+        stream=False,
+        max_tokens=1024,
+        extra_body={'thinking': {'type': 'disabled'}},
+    )
+    print(output.choices[0].message.content)
+    ```
+
+=== "Output"
+
+    ```
+    Paris.
+    ```
+
+## 2. System prompt — tools + ReAct format
+
+~~~python
+SYSTEM_PROMPT = """Answer the following questions as best you can. \
+You have access to the following tools:
+
+get_weather: Get the current weather in a given location
+
+The way you use the tools is by specifying a json blob.
+Specifically, this json should have an `action` key (with the name of the tool to use)
+and an `action_input` key (with the input to the tool going here).
+
+The only values that should be in the "action" field are:
+  get_weather: Get the current weather in a given location,
+               args: {{"location": {{"type": "string"}}}}
+
+example use:
+  {{ "action": "get_weather", "action_input": {{"location": "New York"}} }}
+
+ALWAYS use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about one action to take. Only one action at a time.
+Action:
+```
+$JSON_BLOB
+```
+Observation: the result of the action.
+... (Thought/Action/Observation can repeat N times)
+
+You must always end with:
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Now begin! Reminder to ALWAYS use the exact characters `Final Answer:` when responding.
+"""
+~~~
+
+!!! note "The ReAct format in this prompt"
+    **ReAct** (Reasoning + Acting) structures the agent's output into three repeating steps:
+
+    - **Thought** — the model reasons about what to do next in plain text
+    - **Action** — a JSON blob specifying which tool to call and with what arguments
+    - **Observation** — the real result returned by the tool (injected by us, not generated by the model)
+
+    The prompt also mandates a `Final Answer:` terminator so we know when the agent is done
+    and no more tool calls are needed. Every agent framework ultimately encodes some version
+    of this same loop inside its system prompt.
+
+
 ---
 
 ## 1. Serverless API
@@ -230,182 +413,3 @@ inject the observation → repeat until `Final Answer`.
 | Manual injection | We run the real tool and append its output as `Observation:` |
 | Resume generation | Call the API again with the updated message history |
 
-## Notes & experiments
-
-To run the examples we need to set an API key for Hugging Face.
-
-![HuggingFace login](image.png)
-
-After logging into Hugging Face, go to **Settings → Billing** to make sure your account
-has Inference API access enabled (the free tier is sufficient for this course).
-
-Go to **Settings → Access Tokens** and create a new token. Select **Read** as the token
-type — this is all you need to call the Serverless Inference API. Copy the token (it starts
-with `hf_`) and store it in the `.env` file at the root of the project:
-
-=== "Local (.env file)"
-
-    The repo includes an `example.env` template. Copy it and fill in your token:
-
-    ```bash
-    cp example.env .env
-    ```
-
-    Then edit `.env`:
-
-    ```bash
-    HF_TOKEN=hf_your_actual_token_here
-
-    # Optional — only needed for Unit 2 OpenAI-based examples
-    # OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
-    ```
-
-    Load it in your notebooks with `python-dotenv`:
-
-    ```python
-    from dotenv import load_dotenv
-    load_dotenv()  # reads .env from the project root
-
-    import os
-    token = os.environ["HF_TOKEN"]
-    ```
-
-=== "Google Colab"
-
-    Use the Secrets tab (🔑 icon in the left sidebar). Add a secret named `HF_TOKEN`
-    and paste your token as the value. Then load it in the notebook:
-
-    ```python
-    from google.colab import userdata
-    import os
-    os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
-    ```
-
-!!! warning "Never share your token"
-    `.env` is listed in `.gitignore` and will never be committed. Always use `example.env`
-    as the template you share with others — it contains only placeholder values.
-
-
-
-Let's load the library:
-
-```python
-import os
-from huggingface_hub import InferenceClient
-
-# You need a READ token from https://hf.co/settings/tokens
-# On Google Colab, add it under Secrets (left sidebar) and name it "HF_TOKEN"
-# HF_TOKEN = os.environ.get("HF_TOKEN")
-
-client = InferenceClient(model="moonshotai/Kimi-K2.5")
-```
-
-### Why Kimi-K2.5?
-
-**Kimi-K2.5** is developed by [Moonshot AI](https://www.moonshot.cn/), a Chinese AI research company. It is a large mixture-of-experts (MoE) model with strong instruction-following and reasoning capabilities. We use it here because:
-
-- It is available for free on the HF Serverless Inference API with no local setup required
-- It reliably follows the ReAct format specified in the system prompt
-- It supports an optional extended-thinking mode (which we disable with `extra_body={"thinking": {"type": "disabled"}}` to keep outputs shorter and more predictable)
-
-### Choosing a different model
-
-Any chat model hosted on the HF Hub that supports the Serverless Inference API will work as a drop-in replacement. You can browse the full list at:
-
-**[huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)**
-
-Filter by **Text Generation** and look for the ⚡ *Inference API* badge. Good alternatives to try:
-
-| Model | Author | Notes |
-|-------|--------|-------|
-| `meta-llama/Meta-Llama-3.1-8B-Instruct` | Meta | Strong open-weight baseline |
-| `mistralai/Mistral-7B-Instruct-v0.3` | Mistral AI | Fast and lightweight |
-| `Qwen/Qwen2.5-72B-Instruct` | Alibaba | Excellent instruction following |
-| `microsoft/Phi-3.5-mini-instruct` | Microsoft | Very small, runs fast |
-
-To switch, simply change the `model=` argument in `InferenceClient`:
-
-```python
-client = InferenceClient(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
-```
-
-!!! info "What does 'serverless' mean here?"
-    You don't get a dedicated machine — HF manages a shared pool of GPUs on your behalf.
-    If a model is popular ("warm"), your request is served immediately. If not, you may
-    experience a brief cold start while the model is loaded onto a GPU.
-
-    This is why the model list at
-    [huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)
-    specifically highlights warm models — they are already loaded and respond with low latency.
-
-
-Now let's test the model:
-
-=== "Code"
-
-    ```python
-    output = client.chat.completions.create(
-        messages=[
-            {"role": "user", "content": "The capital of France is"},
-        ],
-        stream=False,
-        max_tokens=1024,
-        extra_body={'thinking': {'type': 'disabled'}},
-    )
-    print(output.choices[0].message.content)
-    ```
-
-=== "Output"
-
-    ```
-    Paris.
-    ```
-
-## 2. System prompt — tools + ReAct format
-
-~~~python
-SYSTEM_PROMPT = """Answer the following questions as best you can. \
-You have access to the following tools:
-
-get_weather: Get the current weather in a given location
-
-The way you use the tools is by specifying a json blob.
-Specifically, this json should have an `action` key (with the name of the tool to use)
-and an `action_input` key (with the input to the tool going here).
-
-The only values that should be in the "action" field are:
-  get_weather: Get the current weather in a given location,
-               args: {{"location": {{"type": "string"}}}}
-
-example use:
-  {{ "action": "get_weather", "action_input": {{"location": "New York"}} }}
-
-ALWAYS use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about one action to take. Only one action at a time.
-Action:
-```
-$JSON_BLOB
-```
-Observation: the result of the action.
-... (Thought/Action/Observation can repeat N times)
-
-You must always end with:
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
-
-Now begin! Reminder to ALWAYS use the exact characters `Final Answer:` when responding.
-"""
-~~~
-
-!!! note "The ReAct format in this prompt"
-    **ReAct** (Reasoning + Acting) structures the agent's output into three repeating steps:
-
-    - **Thought** — the model reasons about what to do next in plain text
-    - **Action** — a JSON blob specifying which tool to call and with what arguments
-    - **Observation** — the real result returned by the tool (injected by us, not generated by the model)
-
-    The prompt also mandates a `Final Answer:` terminator so we know when the agent is done
-    and no more tool calls are needed. Every agent framework ultimately encodes some version
-    of this same loop inside its system prompt.
