@@ -328,3 +328,12 @@ To switch, simply change the `model=` argument in `InferenceClient`:
 ```python
 client = InferenceClient(model="meta-llama/Meta-Llama-3.1-8B-Instruct")
 ```
+
+!!! info "What does 'serverless' mean here?"
+    You don't get a dedicated machine — HF manages a shared pool of GPUs on your behalf.
+    If a model is popular ("warm"), your request is served immediately. If not, you may
+    experience a brief cold start while the model is loaded onto a GPU.
+
+    This is why the model list at
+    [huggingface.co/models?inference=warm](https://huggingface.co/models?inference=warm)
+    specifically highlights warm models — they are already loaded and respond with low latency.
