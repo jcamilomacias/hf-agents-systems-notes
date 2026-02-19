@@ -230,8 +230,6 @@ Thought: I now know the final answer.
 Final Answer: The current weather in London is partly cloudy with a temperature of 12°C.
 ~~~
 
----
-
 ## 3. The hallucination problem
 
 !!! warning "The model is cheating"
@@ -254,14 +252,16 @@ output = client.chat.completions.create(
 print(output.choices[0].message.content)
 ```
 
+By passing `stop=["Observation:"]`, we force the model to halt as soon as it writes that token, giving us the chance to call the real function and inject the actual result. The output will look like:
 
-```
-Thought: To answer the question, I need to get the current weather in London.
+~~~
+Question: What's the weather in London?
+Thought: I need to get the current weather for London. I'll use the get_weather tool with "London" as the location.
 Action:
-```json
+```
 { "action": "get_weather", "action_input": {"location": "London"} }
 ```
-```
+~~~
 
 Now we can parse this, run the real function, and inject the true result.
 
@@ -278,6 +278,7 @@ def get_weather(location: str) -> str:
 print(get_weather("London"))
 # the weather in London is sunny with low temperatures.
 ```
+This dummy tool always returns the same hardcoded string regardless of the location — it never calls a real API. That simplicity is intentional: it lets us focus on the agent loop mechanics rather than API integration.
 
 ---
 
@@ -306,7 +307,10 @@ output = client.chat.completions.create(
 print(output.choices[0].message.content)
 ```
 
+The output is now:
+
 ```
+Thought: I now know the final answer
 Final Answer: The weather in London is sunny with low temperatures.
 ```
 
@@ -342,3 +346,14 @@ inject the observation → repeat until `Final Answer`.
 | Manual injection | We run the real tool and append its output as `Observation:` |
 | Resume generation | Call the API again with the updated message history |
 
+
+
+## 7. Experiment — add a second tool
+
+**Goal:** extend the agent to answer a two-part question that requires two different tools.
+
+We add a `get_time(city)` tool alongside `get_weather`, update the system prompt to list both, and ask:
+
+> *"What's the weather and the local time in Tokyo?"*
+
+The agent should issue two separate tool calls (one per Thought/Action/Observation cycle) before producing a Final Answer.
