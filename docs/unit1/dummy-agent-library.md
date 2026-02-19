@@ -53,7 +53,7 @@ The system prompt is where the "agent magic" happens. It does two things:
 1. **Describes the available tools** (name, description, argument schema)
 2. **Instructs the model to follow the ReAct format** — Thought → Action → Observation → …
 
-```python
+~~~python
 SYSTEM_PROMPT = """Answer the following questions as best you can. \
 You have access to the following tools:
 
@@ -87,7 +87,7 @@ Final Answer: the final answer to the original input question
 
 Now begin! Reminder to ALWAYS use the exact characters `Final Answer:` when responding.
 """
-```
+~~~
 
 We then build the message list and call the API:
 
