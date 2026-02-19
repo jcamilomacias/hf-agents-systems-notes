@@ -241,20 +241,46 @@ has Inference API access enabled (the free tier is sufficient for this course).
 
 Go to **Settings → Access Tokens** and create a new token. Select **Read** as the token
 type — this is all you need to call the Serverless Inference API. Copy the token (it starts
-with `hf_`) and store it as an environment variable:
+with `hf_`) and store it in the `.env` file at the root of the project:
 
-```bash
-# In your terminal / .env file
-export HF_TOKEN=hf_xxxxxxxxxxxxxxxx
-```
+=== "Local (.env file)"
 
-```python
-# In a Colab notebook — use the Secrets tab (🔑 icon on the left sidebar)
-from google.colab import userdata
-import os
-os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
-```
+    The repo includes an `example.env` template. Copy it and fill in your token:
+
+    ```bash
+    cp example.env .env
+    ```
+
+    Then edit `.env`:
+
+    ```bash
+    HF_TOKEN=hf_your_actual_token_here
+
+    # Optional — only needed for Unit 2 OpenAI-based examples
+    # OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxx
+    ```
+
+    Load it in your notebooks with `python-dotenv`:
+
+    ```python
+    from dotenv import load_dotenv
+    load_dotenv()  # reads .env from the project root
+
+    import os
+    token = os.environ["HF_TOKEN"]
+    ```
+
+=== "Google Colab"
+
+    Use the Secrets tab (🔑 icon in the left sidebar). Add a secret named `HF_TOKEN`
+    and paste your token as the value. Then load it in the notebook:
+
+    ```python
+    from google.colab import userdata
+    import os
+    os.environ["HF_TOKEN"] = userdata.get("HF_TOKEN")
+    ```
 
 !!! warning "Never share your token"
-    Do not paste your `HF_TOKEN` directly in a notebook you plan to share or push to GitHub.
-    Use environment variables or Colab Secrets instead.
+    `.env` is listed in `.gitignore` and will never be committed. Always use `example.env`
+    as the template you share with others — it contains only placeholder values.
