@@ -1,0 +1,3 @@
+[     439ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://polyfill.io/v3/polyfill.min.js?features=es6:0
+[     667ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://api.github.com/repos/jcphysica5/hf-agents-systems-notes/releases/latest:0
+[    1290ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8000/hf-agents-systems-notes/assets/favicon.ico:0
