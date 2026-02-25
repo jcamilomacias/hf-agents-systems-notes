@@ -357,3 +357,35 @@ We add a `get_time(city)` tool alongside `get_weather`, update the system prompt
 > *"What's the weather and the local time in Tokyo?"*
 
 The agent should issue two separate tool calls (one per Thought/Action/Observation cycle) before producing a Final Answer.
+
+
+## Let's create our first agent
+
+Now that we understand the agent loop from the inside, let's deploy a real agent on Hugging Face Spaces. The course provides a ready-made template so we don't have to start from scratch — we just duplicate it and customise it.
+
+### Step 1 — Duplicate the template Space
+
+Open the [First Agent Template](https://huggingface.co/spaces/agents-course/First_agent_template) Space and click **Duplicate this Space** (top right). Give it a name, leave the hardware on the free CPU tier, and hit **Duplicate Space**. HF will create a private copy under your account in seconds.
+
+### Step 2 — Create and add a token
+
+The agent code inside the Space needs a Hugging Face token to call the Inference API. The short screencast below walks through creating a **Read** token and adding it as a Space secret named `HF_TOKEN`:
+
+<video controls src="Screencast from 2026-02-25 14-22-26.webm" title="Creating and adding a HF token to a Space"></video>
+
+Once the secret is saved, the Space will rebuild automatically and your agent will be live.
+
+### Step 3 — Verify the deployment
+
+After the build finishes you should see the running app in the **App** tab:
+
+![The agent app running on Hugging Face Spaces](image-1.png)
+
+### Step 4 — Explore and edit the code
+
+To read or modify the agent's source code, switch to the **Files** tab at the top right of the Space page. From there you can open any file directly in the browser editor or clone the Space repository locally with `git`:
+
+![The Files tab in a Hugging Face Space](image-2.png)
+
+
+This is where you would swap in a different model, add new tools, or adjust the system prompt — everything we explored in the sections above.
