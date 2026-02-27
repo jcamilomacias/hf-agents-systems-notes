@@ -46,3 +46,9 @@ dependencies:
 
     # ── Utilities ────────────────────────────────────────────────────────────
     - python-dotenv==1.2.1
+    - requests==2.32.3
+    - pytz==2025.2
+    - PyYAML==6.0.2
+    - markdownify==0.14.1
+    - duckduckgo_search==7.5.3
+    - pandas==2.2.3
