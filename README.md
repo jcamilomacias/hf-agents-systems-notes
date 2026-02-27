@@ -4,7 +4,7 @@ Personal notes and hands-on experiments following the [Hugging Face Agents Cours
 
 The site is built with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) and deployed to GitHub Pages.
 
-**Live site:** https://jcphysica5.github.io/hf-agents-systems-notes/
+**Live site:** https://jcamilomacias.github.io/hf-agents-systems-notes/
 
 ## Local development
 

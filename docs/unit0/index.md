@@ -51,6 +51,4 @@ OPENAI_API_KEY=sk-...    # Optional — only if you use OpenAI models
 | `langchain` / `langgraph` | Agent orchestration |
 | `llama-index` | Data-centric agent framework |
 
-## Notes
 
-_Add your own notes here as you work through the setup._

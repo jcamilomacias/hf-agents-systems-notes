@@ -357,3 +357,84 @@ We add a `get_time(city)` tool alongside `get_weather`, update the system prompt
 > *"What's the weather and the local time in Tokyo?"*
 
 The agent should issue two separate tool calls (one per Thought/Action/Observation cycle) before producing a Final Answer.
+
+
+## Let's create our first agent
+
+Now that we understand the agent loop from the inside, let's deploy a real agent on Hugging Face Spaces. The course provides a ready-made template so we don't have to start from scratch — we just duplicate it and customise it.
+
+### Step 1 — Duplicate the template Space
+
+Open the [First Agent Template](https://huggingface.co/spaces/agents-course/First_agent_template) Space and click **Duplicate this Space** (top right). Give it a name, leave the hardware on the free CPU tier, and hit **Duplicate Space**. HF will create a private copy under your account in seconds.
+
+### Step 2 — Create and add a token
+
+The agent code inside the Space needs a Hugging Face token to call the Inference API. The short screencast below walks through creating a **Read** token and adding it as a Space secret named `HF_TOKEN`:
+
+<video controls src="Screencast from 2026-02-25 14-22-26.webm" title="Creating and adding a HF token to a Space"></video>
+
+Once the secret is saved, the Space will rebuild automatically and your agent will be live.
+
+### Step 3 — Verify the deployment
+
+After the build finishes you should see the running app in the **App** tab:
+
+![The agent app running on Hugging Face Spaces](image-1.png)
+
+### Step 4 — Explore and edit the code
+
+To read or modify the agent's source code, switch to the **Files** tab at the top right of the Space page. From there you can open any file directly in the browser editor or clone the Space repository locally with `git`:
+
+![The Files tab in a Hugging Face Space](image-2.png)
+
+
+This is where you would swap in a different model, add new tools, or adjust the system prompt — everything we explored in the sections above. You can also clone the Space repository locally to edit it with your usual tools:
+
+```bash
+git clone https://huggingface.co/spaces/<your-username>/<your-space-name>
+```
+
+### A look inside `app.py`
+
+The template's `app.py` begins with the following imports:
+
+```python
+from smolagents import CodeAgent, DuckDuckGoSearchTool, FinalAnswerTool, InferenceClientModel, load_tool, tool
+import datetime
+import requests
+import pytz
+import yaml
+```
+
+The centrepiece is `CodeAgent` — a kind of agent that performs **Actions** through Python code blocks generated dynamically on the fly, and then **Observes** results by actually executing that code.
+
+!!! info “How CodeAgent executes actions”
+    Unlike a standard ReAct agent that expresses actions as JSON blobs pointing at a fixed tool, a `CodeAgent` writes a snippet of Python code as its action at every step. The loop works like this:
+
+    1. The model receives the task and the list of available tools
+    2. It generates a Python code block (the **Action**)
+    3. The runtime **executes** that code in a sandboxed interpreter and captures stdout / return values
+    4. The captured output becomes the **Observation**, which is appended to the context and fed back to the model
+    5. The loop repeats until the model calls `FinalAnswerTool`
+
+    This gives the agent the full expressive power of Python: it can chain tool calls, apply transformations, handle conditionals, and compose results in ways that a rigid JSON schema cannot. It is also more transparent — you can read exactly what the agent decided to do at each step.
+
+#### What each import provides
+
+| Name | Type | Role |
+|------|------|------|
+| `CodeAgent` | Agent class | Orchestrates the code-action loop described above. It handles prompt construction, code extraction, sandboxed execution, and observation injection automatically. |
+| `DuckDuckGoSearchTool` | Built-in tool | Lets the agent search the web via DuckDuckGo and get back a list of snippets. No API key required. |
+| `FinalAnswerTool` | Built-in tool | A special sentinel tool. When the agent calls it, the loop ends and its argument is returned as the final answer to the user. |
+| `InferenceClientModel` | Model wrapper | Wraps `huggingface_hub.InferenceClient` so that any HF-hosted chat model can serve as the agent's reasoning backbone. |
+| `load_tool` | Utility function | Downloads and instantiates a tool published on the HF Hub by its repo ID (e.g. `load_tool(“user/my-custom-tool”)`). Makes it easy to reuse community-built tools. |
+| `tool` | Decorator | Converts any plain Python function into a `smolagents`-compatible tool. It reads the function's type annotations and docstring to auto-generate the tool's name, description, and argument schema. |
+
+Decorators are the cleanest way to register new capabilities without writing complex integration boilerplate. When you annotate a function with `@tool` in `app.py`, you are using a decorator pre-written by the Hugging Face team. The Python interpreter sees your function and the decorator does three things automatically:
+
+!!! info “What `@tool` does under the hood”
+    - **Analyses the type annotations** — if you write `p1: int`, the decorator uses that to tell the LLM exactly what data type to pass for each argument
+    - **Reads the docstring** — the description text becomes the tool's stated purpose, so the agent knows when and why to call it
+    - **Wraps the function in a `Tool` object** — your plain function is converted into a class instance that `CodeAgent` can include in its list of available tools and reference in the system prompt
+
+
