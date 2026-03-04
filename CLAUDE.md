@@ -1,8 +1,9 @@
 # Project instructions for Claude
 
-## &...& convention in .md files
+## &...& convention in .md and .ipynb files
 
-Whenever you see text wrapped in `&` symbols inside any `.md` file under `docs/`,
+Whenever you see text wrapped in `&` symbols inside any `.md` file under `docs/`
+or inside any `.ipynb` notebook (in markdown cells or as string values in code cells),
 treat it as an instruction directed at you. Replace the entire `&instruction&` span
 (including the `&` delimiters) with your response to that instruction.
 
