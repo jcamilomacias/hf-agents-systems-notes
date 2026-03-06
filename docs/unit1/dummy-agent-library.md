@@ -438,3 +438,40 @@ Decorators are the cleanest way to register new capabilities without writing com
     - **Wraps the function in a `Tool` object** — your plain function is converted into a class instance that `CodeAgent` can include in its list of available tools and reference in the system prompt
 
 
+
+
+
+`final_answer.py`
+
+In `final_answer.py` we have a `FinalAnswerTool` class that inherits from smolagents' `Tool`. Its `forward` method simply returns its input unchanged — it is the terminal tool in the agent loop: when the agent calls it, execution stops and the value is surfaced as the final answer.
+
+```python
+class FinalAnswerTool(Tool):
+    name = "final_answer"
+    description = "Provides a final answer to the given problem."
+    inputs = {'answer': {'type': 'any', 'description': 'The final answer to the problem'}}
+    output_type = "any"
+
+    def forward(self, answer: Any) -> Any:
+        return answer
+```
+
+### Class attributes vs. instance attributes
+
+`name`, `description`, `inputs`, and `output_type` are **class attributes** — defined directly in the class body and shared by all instances. The smolagents framework reads them at class-definition time to register and use the tool; it's a convention the `Tool` base class expects.
+
+Compare with instance attributes (set inside `__init__`):
+
+```python
+def __init__(self):
+    self.is_initialized = False  # instance attribute — each object has its own copy
+```
+
+| | Class attribute | Instance attribute |
+|---|---|---|
+| Defined | In class body | Inside `__init__` via `self` |
+| Shared | By all instances | Unique per instance |
+| Accessed | `FinalAnswerTool.name` or `self.name` | Only via `self.name` |
+
+`name`, `description`, `inputs`, and `output_type` are metadata the framework reads at class-definition time to understand what the tool is and what arguments it accepts — before any instance is even created.
+
