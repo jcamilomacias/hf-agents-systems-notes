@@ -1,0 +1,5 @@
+
+[2026-03-06 19:46:17] SUCCESS: AAPL consultado.
+[2026-03-06 19:46:17] ERROR: Fallo al buscar AAPLES.
+[2026-03-06 19:54:12] SUCCESS: AAPL consultado.
+[2026-03-06 19:54:12] ERROR: Fallo al buscar AAPLES.
