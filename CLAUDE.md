@@ -26,6 +26,12 @@ token pattern appears in the output. In the agent loop this matters because, ...
 
 Always replace in-place — do not add extra headings or wrappers around the replacement.
 
+## Language
+
+All text in `docs/` must be in English. Whenever you read or edit any `.md` file or `.ipynb`
+notebook under `docs/`, translate any non-English prose, comments, docstrings, and string
+literals to English before saving.
+
 ## Proofreading docs/ files
 
 Whenever you read or edit any `.md` file under `docs/`, automatically correct spelling
