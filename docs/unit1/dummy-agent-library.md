@@ -739,3 +739,8 @@ print(observation_error)
 print()
 print("-> The LLM will read this Observation and can correct its next action.")
 ```
+
+The full runnable version of this walkthrough is available as a Jupyter notebook:
+
+- [View on GitHub](https://github.com/jcamilomacias/hf-agents-systems-notes/blob/main/docs/unit1/agent_execution_flow.ipynb)
+- [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jcamilomacias/hf-agents-systems-notes/blob/main/docs/unit1/agent_execution_flow.ipynb)
