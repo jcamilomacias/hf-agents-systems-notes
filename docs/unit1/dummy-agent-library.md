@@ -479,28 +479,28 @@ def __init__(self):
 
 ![complete cycle ReAct](image-3.png)
 
-`final_answer` no es una herramienta opcional: es una pieza estructural del motor del agente.
+`final_answer` is not an optional tool — it is a structural component of the agent engine.
 
-En `smolagents` existen dos formas de definir herramientas, y cada una tiene un propósito distinto:
+In `smolagents` there are two ways to define tools, each with a distinct purpose:
 
-### 1. Herramientas con `@tool` (funciones de acción)
+### 1. Tools with `@tool` (action functions)
 
-El decorador `@tool` es la forma más directa de crear herramientas que interactúan con el mundo exterior: buscar en la web, consultar una API, hacer un cálculo, etc.
+The `@tool` decorator is the most straightforward way to create tools that interact with the outside world: web search, API calls, calculations, etc.
 
-- Son fáciles de escribir: basta con decorar una función Python normal.
-- Su `forward` devuelve un valor que se convierte en una `Observation` — un dato que el agente procesa antes de continuar razonando.
+- They are easy to write: just decorate a plain Python function.
+- Their `forward` returns a value that becomes an `Observation` — a piece of data the agent processes before continuing to reason.
 
-### 2. `FinalAnswerTool` (herramienta de control)
+### 2. `FinalAnswerTool` (control tool)
 
-`FinalAnswerTool` es diferente: su objetivo no es traer datos nuevos, sino **detener el motor del agente** y entregar la respuesta al usuario. Se implementa como clase heredada de `Tool` por dos razones técnicas:
+`FinalAnswerTool` is different: its purpose is not to fetch new data, but to **stop the agent engine** and deliver the answer to the user. It is implemented as a class inheriting from `Tool` for two technical reasons:
 
-**A. Firma específica requerida por el framework**
+**A. Specific interface required by the framework**
 
-`smolagents` necesita que la respuesta final sea un objeto con una interfaz precisa. Al heredar de `Tool`, el framework puede validar y registrar `final_answer` como cualquier otra herramienta — incluyendo forzar la detención del bucle `while` del agente en cuanto se invoca.
+`smolagents` needs the final answer to be an object with a precise interface. By inheriting from `Tool`, the framework can validate and register `final_answer` like any other tool — including forcing the agent's `while` loop to break as soon as it is invoked.
 
-**B. El `forward` actúa como interruptor del loop**
+**B. `forward` acts as the loop's kill switch**
 
-Las herramientas normales devuelven un valor que el agente guarda como observación y sigue procesando. `FinalAnswerTool.forward`, en cambio, le señala al motor: *"no analices esto, entrégalo directamente al usuario."* Implementarlo como clase permite que este comportamiento especial conviva con el protocolo estándar de herramientas.
+Regular tools return a value that the agent stores as an observation and continues processing. `FinalAnswerTool.forward`, by contrast, signals the engine: *"do not analyse this — deliver it directly to the user."* Implementing it as a class allows this special behaviour to coexist with the standard tool protocol.
 
 Let's see an example:
 
@@ -508,235 +508,234 @@ Let's see an example:
 
 ---
 
-# Flujo de Ejecucion de un Agente (Emulacion de smolagents)
+# Agent Execution Flow (smolagents Emulation)
 
-Este notebook emula manualmente el ciclo interno que sigue un agente como los de la libreria `smolagents`.
-El objetivo es entender **que ocurre por dentro** cuando un agente decide usar una herramienta.
+This notebook manually emulates the internal cycle followed by an agent like those in the `smolagents` library.
+The goal is to understand **what happens under the hood** when an agent decides to use a tool.
 
-## El ciclo de un agente en tres pasos
+## The agent cycle in three steps
 
 ```
-  LLM recibe el system prompt
+  LLM receives the system prompt
          |
          v
-  LLM genera una accion (Thought + Action)
+  LLM generates an action (Thought + Action)
          |
          v
-  El motor del agente ejecuta la herramienta
+  The agent engine executes the tool
          |
          v
-  El resultado (Observation) se devuelve al LLM
+  The result (Observation) is returned to the LLM
          |
          v
-  Se repite hasta que el LLM emite una respuesta final
+  Repeats until the LLM emits a final answer
 ```
 
-Cada seccion de este notebook corresponde a una pieza del ciclo.
+Each section of this notebook corresponds to one piece of the cycle.
 
 ---
 
-## Paso 1 — La Clase Base `Tool` (el contrato)
+## Step 1 — The `Tool` Base Class (the contract)
 
-En `smolagents`, toda herramienta hereda de una clase base que impone una interfaz comun.
-Esto le permite al motor del agente tratar cualquier herramienta de forma uniforme,
-sin importar lo que haga por dentro.
+In `smolagents`, every tool inherits from a base class that enforces a common interface.
+This allows the agent engine to treat any tool uniformly, regardless of what it does internally.
 
-Los cuatro atributos obligatorios son:
+The four required attributes are:
 
-| Atributo | Proposito |
+| Attribute | Purpose |
 |---|---|
-| `name` | Identificador unico que el LLM usara para invocar la herramienta |
-| `description` | Texto en lenguaje natural que el LLM lee para saber *que* hace la herramienta |
-| `inputs` | Esquema de los argumentos que acepta (tipo y descripcion de cada uno) |
-| `output_type` | Tipo del valor de retorno (`"string"`, `"number"`, etc.) |
+| `name` | Unique identifier the LLM uses to invoke the tool |
+| `description` | Plain-language text the LLM reads to understand *what* the tool does |
+| `inputs` | Schema of expected arguments (type and description for each) |
+| `output_type` | Type of the return value (`"string"`, `"number"`, etc.) |
 
-El metodo `forward` es el punto de entrada: el motor del agente lo llama cuando el LLM decide usar la herramienta.
+The `forward` method is the entry point: the agent engine calls it when the LLM decides to use the tool.
 
 ```python
 from typing import Any, Dict
 
 
 class Tool:
-    """Clase base que define el contrato minimo para cualquier herramienta del agente."""
+    """Base class defining the minimum contract for any agent tool."""
 
-    name: str                           # identificador que el LLM usa para invocarla
-    description: str                    # explicacion en lenguaje natural para el LLM
-    inputs: Dict[str, Dict[str, Any]]   # esquema de argumentos esperados
-    output_type: str                    # tipo de dato que retorna
+    name: str                           # identifier the LLM uses to invoke it
+    description: str                    # plain-language explanation for the LLM
+    inputs: Dict[str, Dict[str, Any]]   # schema of expected arguments
+    output_type: str                    # return data type
 
     def forward(self, *args, **kwargs):
-        """Logica real de la herramienta. Las subclases deben sobreescribir este metodo."""
+        """Core logic of the tool. Subclasses must override this method."""
         pass
 ```
 
 ---
 
-## Paso 2 — Una Herramienta Concreta: `StockPriceTool`
+## Step 2 — A Concrete Tool: `StockPriceTool`
 
-Aqui creamos una herramienta real que hereda de `Tool`. Para no depender de una API externa, usamos un diccionario con precios fijos.
+Here we create a real tool that inherits from `Tool`. To avoid depending on an external API, we use a dictionary with fixed prices.
 
-Puntos clave a observar:
+Key points to observe:
 
-- Los **atributos de clase** (`name`, `description`, `inputs`, `output_type`) son los metadatos que el motor del agente leera para construir el system prompt.
-- `_log_activity` es un metodo de soporte interno (no lo ve el LLM).
-- `forward` contiene la logica de negocio: buscar el simbolo, retornar el precio o sugerir alternativas si no existe.
+- The **class attributes** (`name`, `description`, `inputs`, `output_type`) are the metadata the agent engine reads to build the system prompt.
+- `_log_activity` is an internal helper method (not visible to the LLM).
+- `forward` contains the business logic: look up the symbol, return the price, or suggest alternatives if not found.
 
 ```python
 import datetime
 
 
 class StockPriceTool(Tool):
-    # --- Metadatos: el LLM los lee para saber como usar esta herramienta ---
+    # --- Metadata: the LLM reads these to understand how to use this tool ---
     name = "get_stock_price"
-    description = "Obtiene el precio actual de una accion. Si el simbolo no existe, sugiere opciones validas."
+    description = "Gets the current price of a stock. If the symbol does not exist, suggests valid options."
     inputs = {
         "symbol": {
             "type": "string",
-            "description": "Simbolo bursatil de la accion (ej: AAPL, TSLA, GOOGL)"
+            "description": "Stock ticker symbol (e.g. AAPL, TSLA, GOOGL)"
         }
     }
     output_type = "string"
 
-    # Datos simulados: en produccion esto seria una llamada a una API financiera
+    # Simulated data: in production this would be a call to a financial API
     _mock_data = {"AAPL": 175.5, "TSLA": 240.2, "GOOGL": 140.1}
 
     def _log_activity(self, message: str) -> None:
-        """Escribe un registro de auditoria en agent_log.txt (no expuesto al LLM)."""
+        """Writes an audit record to agent_log.txt (not exposed to the LLM)."""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open("agent_log.txt", "a") as f:
             f.write(f"[{timestamp}] {message}\n")
 
     def forward(self, symbol: str) -> str:
-        """Punto de entrada que llama el motor del agente cuando el LLM elige esta herramienta."""
-        s = symbol.upper()  # normalizar a mayusculas para evitar errores de capitalizado
+        """Entry point called by the agent engine when the LLM selects this tool."""
+        s = symbol.upper()  # normalise to uppercase to avoid capitalisation errors
 
         if s in self._mock_data:
-            result = f"El precio de {s} es {self._mock_data[s]} USD."
-            self._log_activity(f"SUCCESS: {s} consultado.")
+            result = f"The price of {s} is {self._mock_data[s]} USD."
+            self._log_activity(f"SUCCESS: {s} queried.")
             return result
         else:
-            # El LLM recibira este mensaje y podra corregir su siguiente accion
-            opciones = ", ".join(self._mock_data.keys())
-            error_msg = f"Error: '{s}' no encontrado. Intenta con: {opciones}"
-            self._log_activity(f"ERROR: Fallo al buscar {s}.")
+            # The LLM will receive this message and can correct its next action
+            options = ", ".join(self._mock_data.keys())
+            error_msg = f"Error: '{s}' not found. Try one of: {options}"
+            self._log_activity(f"ERROR: Failed to look up {s}.")
             return error_msg
 
 
-# Prueba rapida de la herramienta de forma aislada (sin agente)
+# Quick test of the tool in isolation (no agent)
 tool_solo = StockPriceTool()
-print("Simbolo valido:  ", tool_solo.forward("aapl"))
-print("Simbolo invalido:", tool_solo.forward("aaples"))
+print("Valid symbol:  ", tool_solo.forward("aapl"))
+print("Invalid symbol:", tool_solo.forward("aaples"))
 ```
 
 ---
 
-## Paso 3 — El Motor del Agente: `MockAgent`
+## Step 3 — The Agent Engine: `MockAgent`
 
-Este es el componente central. En `smolagents` esto es el `CodeAgent` o el `ToolCallingAgent`. Su responsabilidad es hacer de puente entre el LLM y las herramientas.
+This is the central component. In `smolagents` this role is played by `CodeAgent` or `ToolCallingAgent`. Its responsibility is to act as the bridge between the LLM and the tools.
 
-Tiene dos responsabilidades criticas:
+It has two critical responsibilities:
 
-1. **Construir el system prompt** — Recorre todas las herramientas registradas y genera un texto que le explica al LLM cuales herramientas tiene disponibles y como usarlas. Este texto se envia al LLM al inicio de cada conversacion.
+1. **Build the system prompt** — Iterates over all registered tools and generates a text that explains to the LLM which tools are available and how to use them. This text is sent to the LLM at the start of each conversation.
 
-2. **Despachar la accion del LLM** — Cuando el LLM genera una accion (nombre de herramienta + argumentos), el motor la parsea, busca la herramienta correcta, llama a su `forward`, y devuelve el resultado como una `Observation` al LLM.
+2. **Dispatch the LLM's action** — When the LLM generates an action (tool name + arguments), the engine parses it, finds the right tool, calls its `forward`, and returns the result as an `Observation` to the LLM.
 
-> **Nota:** En la vida real, el parseo de argumentos (JSON → kwargs) lo hace smolagents automaticamente. Aqui lo simplificamos pasando un unico string para no oscurecer el flujo.
+> **Note:** In practice, argument parsing (JSON → kwargs) is handled automatically by smolagents. Here we simplify by passing a single string to keep the flow visible.
 
 ```python
 class MockAgent:
     def __init__(self, tools: list):
-        # Indexamos las herramientas por nombre para buscarlas en O(1)
+        # Index tools by name for O(1) lookup
         self.tools = {tool.name: tool for tool in tools}
 
     def generate_system_prompt(self) -> str:
         """
-        Construye el system prompt que se envia al LLM antes de la primera interaccion.
-        En smolagents este texto incluye tambien reglas de formato (ReAct, JSON, etc.).
+        Builds the system prompt sent to the LLM before the first interaction.
+        In smolagents this text also includes formatting rules (ReAct, JSON, etc.).
         """
-        prompt = "Eres un asistente con acceso a las siguientes herramientas:\n"
+        prompt = "You are an assistant with access to the following tools:\n"
         for name, tool in self.tools.items():
             prompt += f"\n- {name}: {tool.description}"
-            prompt += f"\n  Argumentos: {tool.inputs}"
-            prompt += f"\n  Retorna: {tool.output_type}\n"
+            prompt += f"\n  Arguments: {tool.inputs}"
+            prompt += f"\n  Returns: {tool.output_type}\n"
         return prompt
 
     def handle_llm_call(self, tool_name: str, argument: str) -> str:
         """
-        Ejecuta la accion elegida por el LLM y empaqueta el resultado como Observation.
+        Executes the action chosen by the LLM and packages the result as an Observation.
 
-        En el ciclo ReAct el LLM emite:
-            Thought: necesito el precio de Apple
+        In the ReAct cycle the LLM emits:
+            Thought: I need the price of Apple
             Action: get_stock_price
             Action Input: AAPL
 
-        Este metodo recibe esos valores y retorna la Observation que el LLM leera
-        en el siguiente turno para continuar razonando.
+        This method receives those values and returns the Observation the LLM will read
+        on the next turn to continue reasoning.
         """
         if tool_name not in self.tools:
-            return f"Error: la herramienta '{tool_name}' no existe."
+            return f"Error: tool '{tool_name}' does not exist."
 
         tool = self.tools[tool_name]
-        print(f"[Agente] Ejecutando '{tool_name}' con argumento: '{argument}'")
+        print(f"[Agent] Running '{tool_name}' with argument: '{argument}'")
         result = tool.forward(argument)
 
-        # El prefijo 'Observation:' es la convencion ReAct para que el LLM reconozca
-        # el bloque como resultado de una herramienta, no como texto generado por el.
+        # The 'Observation:' prefix is the ReAct convention so the LLM recognises
+        # the block as a tool result, not as text it generated itself.
         return f"Observation: {result}"
 
 
-# Registrar las herramientas disponibles al instanciar el agente
+# Register available tools when instantiating the agent
 agent = MockAgent(tools=[StockPriceTool()])
 ```
 
 ---
 
-## Paso 4 — Ejecucion del Flujo Completo
+## Step 4 — Full Flow Execution
 
-Ahora conectamos todas las piezas y simulamos un turno completo del ciclo agente:
+Now we connect all the pieces and simulate one complete turn of the agent cycle:
 
 ```
-TURNO 1
-  Usuario:  "Cual es el precio de Apple?"
-  LLM piensa: debo usar get_stock_price con AAPL
-  Agente:   llama a StockPriceTool.forward("AAPL")
-  LLM recibe: Observation: El precio de AAPL es 175.5 USD.
-  LLM responde al usuario con la respuesta final
+TURN 1
+  User:       "What is the price of Apple?"
+  LLM thinks: I should use get_stock_price with AAPL
+  Agent:      calls StockPriceTool.forward("AAPL")
+  LLM reads:  Observation: The price of AAPL is 175.5 USD.
+  LLM replies to the user with the final answer
 ```
 
 ```python
-# --- PASO A: Lo que el LLM recibe al inicio (system prompt) ---
+# --- STEP A: What the LLM receives on startup (system prompt) ---
 print("=" * 55)
-print("PASO A: SYSTEM PROMPT (lo que el LLM ve al arrancar)")
+print("STEP A: SYSTEM PROMPT (what the LLM sees at startup)")
 print("=" * 55)
 print(agent.generate_system_prompt())
 
-# --- PASO B: El LLM decide actuar (Thought + Action) ---
-# En la realidad esta decision la toma el LLM a partir del mensaje del usuario.
-# Aqui la hardcodeamos para hacer el flujo visible.
+# --- STEP B: The LLM decides to act (Thought + Action) ---
+# In practice this decision is made by the LLM based on the user's message.
+# Here we hard-code it to make the flow visible.
 print("=" * 55)
-print("PASO B: ACCION GENERADA POR EL LLM")
+print("STEP B: ACTION GENERATED BY THE LLM")
 print("=" * 55)
-print("  Thought: El usuario quiere el precio de Apple.")
+print("  Thought: The user wants the price of Apple.")
 print("  Action:  get_stock_price")
 print("  Input:   AAPL")
 print()
 
-# --- PASO C: El motor ejecuta la herramienta y obtiene la Observation ---
+# --- STEP C: The engine executes the tool and obtains the Observation ---
 observation = agent.handle_llm_call("get_stock_price", "AAPL")
 
 print()
 print("=" * 55)
-print("PASO C: OBSERVATION (resultado que el LLM leeara)")
+print("STEP C: OBSERVATION (result the LLM will read)")
 print("=" * 55)
 print(observation)
 
-# --- PASO D: Simular un error para ver como el agente lo maneja ---
+# --- STEP D: Simulate an error to see how the agent handles it ---
 print()
 print("=" * 55)
-print("PASO D: MANEJO DE ERROR (simbolo inexistente)")
+print("STEP D: ERROR HANDLING (non-existent symbol)")
 print("=" * 55)
 observation_error = agent.handle_llm_call("get_stock_price", "AAPLES")
 print(observation_error)
 print()
-print("-> El LLM leera esta Observation y podra corregir su siguiente accion.")
+print("-> The LLM will read this Observation and can correct its next action.")
 ```
