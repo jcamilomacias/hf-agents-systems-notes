@@ -18,7 +18,7 @@ tokenizers==0.22.2
 torch==2.10.0
 
 # smolagents (Unit 2)
-smolagents[gradio]==1.24.0
+smolagents[gradio,telemetry]==1.24.0
 
 # LangChain / LangGraph (Unit 2)
 langchain==1.2.10
@@ -37,6 +37,7 @@ llama-index-workflows==2.14.2
 
 # Observability / tracing (Bonus Unit 2)
 opentelemetry-sdk==1.39.1
+opentelemetry-exporter-otlp
 openinference-instrumentation-smolagents==0.1.22
 
 # Utilities

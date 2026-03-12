@@ -22,6 +22,7 @@ Each framework makes different trade-offs between:
 
 | Notebook | Framework | Description |
 |----------|-----------|-------------|
+| [code_agents.ipynb](code_agents.ipynb) | smolagents | Code agents with custom tools and Langfuse monitoring |
 | `notebooks/unit2/01_smolagents_intro.ipynb` | smolagents | First steps |
 | `notebooks/unit2/02_llamaindex_agent.ipynb` | LlamaIndex | Query engine agent |
 | `notebooks/unit2/03_langgraph_flow.ipynb` | LangGraph | Stateful graph agent |
